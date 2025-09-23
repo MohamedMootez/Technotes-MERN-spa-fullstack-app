@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "server.cjs",
   "scripts": {
-    "start":"node server",
-    "dev":"nodemon server"
+    "start": "node server",
+    "dev": "nodemon server"
   },
   "repository": {
     "type": "git",
@@ -19,7 +19,11 @@
   "homepage": "https://github.com/MohamedMootez/Technotes-MERN-spa-fullstack-app#readme",
   "description": "",
   "dependencies": {
-    "express": "^5.1.0"
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "express": "^5.1.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

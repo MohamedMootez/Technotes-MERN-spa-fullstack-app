@@ -1,11 +1,26 @@
 const express=require("express")
 const app=express()
 const path=require("path")
+const{logger}=require("./middleware/logger.cjs")
 const PORT=process.env.PORT ||3500
+const errorHandler=require("./middleware/errorHandler.cjs")
+const cookieParser=require("cookie-parser")
+const cors=require("cors")
+const corsOptions=require("./config/corsOptions.cjs")
 
+// ? let app recieve and parse json data
+app.use(logger)
+
+app.use(cors(corsOptions))
+
+app.use(express.json())
+
+app.use(cookieParser())
 
 app.use("/",express.static(path.join(__dirname,"public")))
-app.use("/",require("./routes/root"))
+
+app.use("/",require("./routes/root.cjs"))
+
 app.use((req,res)=>{
     res.status(404)
     if(req.accepts("html")){
@@ -18,4 +33,5 @@ app.use((req,res)=>{
     }
 
 })
+app.use(errorHandler)
 app.listen(PORT,()=> console.log(`Server Running on port ${PORT}`))
