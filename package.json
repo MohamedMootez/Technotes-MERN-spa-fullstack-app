@@ -19,10 +19,16 @@
   "homepage": "https://github.com/MohamedMootez/Technotes-MERN-spa-fullstack-app#readme",
   "description": "",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "express-async-handler": "^1.2.0",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.18.3",
+    "mongoose-sequence": "^6.0.1",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

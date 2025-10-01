@@ -1,12 +1,21 @@
+
+require("dotenv").config()
 const express=require("express")
 const app=express()
 const path=require("path")
-const{logger}=require("./middleware/logger.cjs")
+const{logger,logEvents}=require("./middleware/logger.cjs")
 const PORT=process.env.PORT ||3500
 const errorHandler=require("./middleware/errorHandler.cjs")
 const cookieParser=require("cookie-parser")
 const cors=require("cors")
 const corsOptions=require("./config/corsOptions.cjs")
+const connectDB=require("./config/dbConnect.cjs")
+const mongoose=require("mongoose")
+
+
+
+
+connectDB()
 
 // ? let app recieve and parse json data
 app.use(logger)
@@ -21,6 +30,8 @@ app.use("/",express.static(path.join(__dirname,"public")))
 
 app.use("/",require("./routes/root.cjs"))
 
+app.use("/users",require("./routes/userRoutes.cjs"))
+
 app.use((req,res)=>{
     res.status(404)
     if(req.accepts("html")){
@@ -34,4 +45,12 @@ app.use((req,res)=>{
 
 })
 app.use(errorHandler)
+
+mongoose.connection.once("open",()=> {
+    console.log("Connected to MongoDB")
 app.listen(PORT,()=> console.log(`Server Running on port ${PORT}`))
+})
+mongoose.connection.on("error",err=>{
+    console.log(err)
+    logEvents(`${err.no}: ${err.code}\t ${err.syscall}\t ${err.hostname}`,"mongoErrLog.log")
+})
