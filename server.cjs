@@ -31,6 +31,7 @@ app.use("/",express.static(path.join(__dirname,"public")))
 app.use("/",require("./routes/root.cjs"))
 
 app.use("/users",require("./routes/userRoutes.cjs"))
+app.use("/notes",require("./routes/noteRoutes.cjs"))
 
 app.use((req,res)=>{
     res.status(404)
