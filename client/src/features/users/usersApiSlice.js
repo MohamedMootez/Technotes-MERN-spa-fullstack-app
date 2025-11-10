@@ -1,64 +1,130 @@
+// ? createSelector = utility from Redux Toolkit to build memoized selectors.
+//   It caches the last result so it only recomputes when the inputs change.
+// ? createEntityAdapter = helper that simplifies managing collections (arrays)
+//   of items in normalized form: { ids: [], entities: { id: item } }.
+import { createSelector, createEntityAdapter } from "@reduxjs/toolkit";
 
-// ? the create selector(function that reads and returns a specific part of the state from a store) is used for memorized selectors meaning it caches last calculation
+// ? apiSlice = the base RTK Query API configuration that defines the backend base URL
+//   and common API setup for the entire app (like 'http://localhost:3500').
+//   Here we will *extend* it with new endpoints for users.
+import { apiSlice } from "../../app/api/apiSlice";
 
-//? EntityAdapter is a helper ( a function that makes a comon task easier ) that makes it easier to manage collections of items in the Redux state.
-import {
-createSelector,
-    createEntityAdapter
-} from "@reduxjs/toolkit";
+// -------------------------------------------------------------
+// 1️⃣ Create an Entity Adapter to handle user data normalization
+// -------------------------------------------------------------
 
-// ?apiSlice is your central API service configuration — a single place where you tell Redux Toolkit Query: “Here’s my backend base URL,here’s how to make requests,and here’s what kinds of data (users, notes, etc.) I’ll fetch.”
+// ? usersAdapter creates predefined reducers and selectors for a list of users.
+//   This helps us easily add/update/remove users in Redux without manual reducers.
+const usersAdapter = createEntityAdapter({});
 
-import { apiSlice } from "../../app/api/apiSlice"
+// ? initialState = empty normalized state structure:
+//   { ids: [], entities: {} }
+const initialState = usersAdapter.getInitialState();
 
-const usersAdapter = createEntityAdapter({})
-
-const initialState = usersAdapter.getInitialState()
+// -------------------------------------------------------------
+// 2️⃣ Extend the base apiSlice with a new endpoint: getUsers
+// -------------------------------------------------------------
 
 export const usersApiSlice = apiSlice.injectEndpoints({
-    endpoints: builder => ({
-        getUsers: builder.query({
-            query: () => '/users',
-            validateStatus: (response, result) => {
-                return response.status === 200 && !result.isError
-            },
-            keepUnusedDataFor: 5,
-            transformResponse: responseData => {
-                const loadedUsers = responseData.map(user => {
-                    user.id = user._id
-                    return user
-                });
-                return usersAdapter.setAll(initialState, loadedUsers)
-            },
-            providesTags: (result, error, arg) => {
-                if (result?.ids) {
-                    return [
-                        { type: 'User', id: 'LIST' },
-                        ...result.ids.map(id => ({ type: 'User', id }))
-                    ]
-                } else return [{ type: 'User', id: 'LIST' }]
-            }
-        }),
+  endpoints: (builder) => ({
+    getUsers: builder.query({
+      query: () => "/users",
+      validateStatus: (response, result) => {
+        return response.status === 200 && !result.isError;
+      },
+      transformResponse: (responseData) => {
+        const loadedUsers = responseData.map((user) => {
+          user.id = user._id;
+          return user;
+        });
+        return usersAdapter.setAll(initialState, loadedUsers);
+      },
+      providesTags: (result, error, arg) => {
+        if (result?.ids) {
+          return [
+            { type: "User", id: "LIST" },
+            ...result.ids.map((id) => ({ type: "User", id })),
+          ];
+        } else return [{ type: "User", id: "LIST" }];
+      },
     }),
-})
+    addNewUser: builder.mutation({
+      query: (initialUserData) => ({
+        url: "/users",
+        method: "POST",
+        body: {
+          ...initialUserData,
+        },
+      }),
+      invalidatesTags: [{ type: "User", id: "LIST" }],
+    }),
+    updateUser: builder.mutation({
+      query: (initialUserData) => ({
+        url: `/users/`,
+        method: "PATCH",
+        body: {
+          ...initialUserData,
+        },
+      }),
+      invalidatesTags: (result, error, arg) => [{ type: "User", id: arg.id }],
+    }),
+    deleteUser: builder.mutation({
+      query: ({ id }) => ({
+        url: `/users`,
+        method: "DELETE",
+        body: { id },
+      }),
+      invalidatesTags: (result, error, arg) => [{ type: "User", id: arg.id }],
+    }),
+  }),
+});
 
+// -------------------------------------------------------------
+// 3️⃣ Export the auto-generated hook from RTK Query
+// -------------------------------------------------------------
+
+// ? RTK Query automatically generates a React hook for each endpoint.
+//   Here: useGetUsersQuery() will perform the GET /users request and
+//   give you { data, isLoading, isSuccess, isError, error } in a component.
 export const {
-    useGetUsersQuery,
-} = usersApiSlice
+  useGetUsersQuery,
+  useAddNewUserMutation,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+} = usersApiSlice;
 
-// returns the query result object
-export const selectUsersResult = usersApiSlice.endpoints.getUsers.select()
+// -------------------------------------------------------------
+// 4️⃣ Selectors to access user data directly from Redux store
+// -------------------------------------------------------------
 
-// creates memoized selector
+// ? selectUsersResult = selector that returns the full query result object
+//   (includes data, status flags, timestamps, etc.)
+export const selectUsersResult = usersApiSlice.endpoints.getUsers.select();
+
+// ? selectUsersData = memoized selector that extracts only the normalized user data
+//   from the full query result. If the data hasn’t changed, the cached result is reused.
 const selectUsersData = createSelector(
-    selectUsersResult,
-    usersResult => usersResult.data // normalized state object with ids & entities
-)
+  selectUsersResult,
+  (usersResult) => usersResult.data // data = { ids: [...], entities: {...} }
+);
 
-//getSelectors creates these selectors and we rename them with aliases using destructuring
+// -------------------------------------------------------------
+// 5️⃣ Generate prebuilt selectors from the entity adapter
+// -------------------------------------------------------------
+
+// ? usersAdapter.getSelectors() creates a set of handy selectors:
+//   - selectAll: returns all users as an array
+//   - selectById: returns one user by id
+//   - selectIds: returns an array of all user ids
+// ? We destructure them and rename for clarity.
 export const {
-    selectAll: selectAllUsers,
-    selectById: selectUserById,
-    selectIds: selectUserIds
-    // Pass in a selector that returns the users slice of state
-} = usersAdapter.getSelectors(state => selectUsersData(state) ?? initialState)
+  selectAll: selectAllUsers,
+  selectById: selectUserById,
+  selectIds: selectUserIds,
+  // ? getSelectors expects a function that tells it where to find
+  //   the normalized user data in the Redux store.
+  // ? We pass a selector (state => selectUsersData(state) ?? initialState)
+  //   meaning: use selectUsersData if available, else fallback to empty state.
+} = usersAdapter.getSelectors(
+  (state) => selectUsersData(state) ?? initialState
+);
